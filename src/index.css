@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+/* ===================================
+   WEATHER-THEMED NEUMORPHISM DESIGN SYSTEM
+   Dark & Light mode via data-theme
+=================================== */
+
+/* ----- Dark Mode: Deep Midnight Space & Starlight ----- */
+[data-theme="dark"] {
+  --nm-bg: #0b132b;
+  --nm-bg-secondary: #0f1836;
+  --nm-shadow-light: #131e3d;
+  --nm-shadow-dark: #030712;
+  --nm-text-primary: #e2e8f0;
+  --nm-text-dim: #94a3b8;
+  --nm-text-heading: #f8fafc;
+  --nm-border-subtle: rgba(255, 255, 255, 0.03);
+  --nm-inset-bg: #070c1c;
+}
+
+/* ----- Light Mode: Daylight Sky & Cloud ----- */
+[data-theme="light"] {
+  --nm-bg: #e6f0fa;
+  --nm-bg-secondary: #edf4fc;
+  --nm-shadow-light: #ffffff;
+  --nm-shadow-dark: #b8c9db;
+  --nm-text-primary: #1e293b;
+  --nm-text-dim: #64748b;
+  --nm-text-heading: #0f172a;
+  --nm-border-subtle: rgba(0, 0, 0, 0.03);
+  --nm-inset-bg: #d8e6f5;
+}
+
+/* ----- Base Reset ----- */
+*,
+*::before,
+*::after {
+  transition: background-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+body {
+  background-color: var(--nm-bg);
+  color: var(--nm-text-primary);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===================================
+   NEUMORPHISM UTILITY CLASSES
+=================================== */
+
+/* Raised / Flat surface — standard card or button */
+.nm-flat {
+  background: var(--nm-bg);
+  border-radius: 20px;
+  box-shadow:
+    8px 8px 16px var(--nm-shadow-dark),
+    -8px -8px 16px var(--nm-shadow-light);
+}
+
+/* Pressed / Inset surface — metric tiles, log console */
+.nm-inset {
+  background: var(--nm-inset-bg);
+  border-radius: 16px;
+  box-shadow:
+    inset 4px 4px 8px var(--nm-shadow-dark),
+    inset -4px -4px 8px var(--nm-shadow-light);
+}
+
+/* Card container — outer wrapper for main sections */
+.nm-card {
+  background: var(--nm-bg);
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow:
+    8px 8px 20px var(--nm-shadow-dark),
+    -8px -8px 20px var(--nm-shadow-light);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.nm-card:hover {
+  box-shadow:
+    10px 10px 24px var(--nm-shadow-dark),
+    -10px -10px 24px var(--nm-shadow-light);
+  transform: translateY(-2px);
+}
+
+/* Interactive button */
+.nm-btn {
+  background: var(--nm-bg);
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  box-shadow:
+    4px 4px 10px var(--nm-shadow-dark),
+    -4px -4px 10px var(--nm-shadow-light);
+  cursor: pointer;
+  border: none;
+  color: var(--nm-text-primary);
+  font-weight: 600;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.nm-btn:hover {
+  box-shadow:
+    6px 6px 14px var(--nm-shadow-dark),
+    -6px -6px 14px var(--nm-shadow-light);
+}
+
+.nm-btn:active {
+  box-shadow:
+    inset 3px 3px 6px var(--nm-shadow-dark),
+    inset -3px -3px 6px var(--nm-shadow-light);
+  transform: scale(0.98);
+}
+
+/* Status badge pill */
+.nm-badge {
+  background: var(--nm-bg);
+  border-radius: 50px;
+  padding: 0.375rem 1rem;
+  box-shadow:
+    3px 3px 8px var(--nm-shadow-dark),
+    -3px -3px 8px var(--nm-shadow-light);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Section divider line */
+.nm-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--nm-shadow-dark),
+    transparent
+  );
+  margin: 1.5rem 0;
+}
+
+/* ----- Helper text colors ----- */
+.nm-text-primary { color: var(--nm-text-primary); }
+.nm-text-dim { color: var(--nm-text-dim); }
+.nm-text-heading { color: var(--nm-text-heading); }
+
+/* ----- Scrollbar styling ----- */
+.nm-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nm-scroll::-webkit-scrollbar-track {
+  background: var(--nm-inset-bg);
+  border-radius: 3px;
+}
+
+.nm-scroll::-webkit-scrollbar-thumb {
+  background: var(--nm-text-dim);
+  border-radius: 3px;
+}
