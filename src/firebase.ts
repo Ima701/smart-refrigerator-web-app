@@ -1,17 +1,17 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getMessaging } from 'firebase/messaging';
 
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  databaseURL:
-    import.meta.env.VITE_FIREBASE_DATABASE_URL ||
-    `https://${import.meta.env.VITE_FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`,
+  apiKey: 'AIzaSyBHPGnVPCmUay8s9JtQtqNoJCKnEQ3dInk',
+  authDomain: 'smart-refrigerator-app-d2962.firebaseapp.com',
+  projectId: 'smart-refrigerator-app-d2962',
+  storageBucket: 'smart-refrigerator-app-d2962.firebasestorage.app',
+  messagingSenderId: '40347297084',
+  appId: '1:1:40347297084:web:c0c96b6f59fa277d2baa39',
+  databaseURL: 'https://smart-refrigerator-app-d2962-default-rtdb.firebaseio.com/',
 };
 
 // Primary app — used for the signed-in user session
@@ -27,3 +27,9 @@ export const auth = getAuth(app);
 // without disturbing the admin's own session.
 const secondaryApp = initializeApp(firebaseConfig, 'user-provisioning');
 export const secondaryAuth = getAuth(secondaryApp);
+
+// Firestore — used for storing FCM device tokens
+export const firestore = getFirestore(app);
+
+// Messaging — used for FCM push notifications
+export const messaging = getMessaging(app);

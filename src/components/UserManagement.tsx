@@ -19,7 +19,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { ref, onValue, set, remove } from 'firebase/database';
+import { ref, onValue, set, remove, push } from 'firebase/database';
 import { secondaryAuth, db } from '../firebase';
 import type { UserRole } from '../store/authSlice';
 import { useAppSelector } from '../store';
@@ -163,6 +163,16 @@ export default function UserManagement() {
       setModalSuccess(`"${userEmail}" created as ${roleConfig[role].label}.`);
       setNewEmail('');
       setNewPassword('');
+
+      // Audit log: user creation
+      push(ref(db, '/audit'), {
+        timestamp: Date.now(),
+        actor: currentUser?.email || 'Admin',
+        actorRole: currentUser?.role || 'admin',
+        action: 'Created user',
+        details: `New account: ${userEmail} (${roleConfig[role].label})`,
+        category: 'user',
+      }).catch(() => {});
     } catch (err: any) {
       if (err.code === 'auth/email-already-in-use') {
         setModalError('This email is already registered.');
@@ -183,9 +193,20 @@ export default function UserManagement() {
   // Note: Firebase client SDK cannot delete other users' Auth accounts.
   // ---------------------------------------------------------------------------
   const handleRemove = async (uid: string) => {
+    const userToDelete = users.find(u => u.uid === uid);
     setIsDeleting(true);
     try {
       await remove(ref(db, `/users/${uid}`));
+      if (userToDelete) {
+        push(ref(db, '/audit'), {
+          timestamp: Date.now(),
+          actor: currentUser?.email || 'Admin',
+          actorRole: currentUser?.role || 'admin',
+          action: 'Deleted user',
+          details: `Account removed: ${userToDelete.email} (${roleConfig[userToDelete.role].label})`,
+          category: 'user',
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error('Failed to remove user from RTDB:', err);
     } finally {
@@ -202,7 +223,16 @@ export default function UserManagement() {
     if (!editingUser) return;
     setIsUpdatingRole(true);
     try {
+      const oldRole = editingUser.role;
       await set(ref(db, `/users/${editingUser.uid}/role`), editRole);
+      push(ref(db, '/audit'), {
+        timestamp: Date.now(),
+        actor: currentUser?.email || 'Admin',
+        actorRole: currentUser?.role || 'admin',
+        action: 'Changed role',
+        details: `${editingUser.email}: ${roleConfig[oldRole].label} → ${roleConfig[editRole].label}`,
+        category: 'user',
+      }).catch(() => {});
       setEditingUser(null);
     } catch (err) {
       console.error('Failed to update role:', err);
