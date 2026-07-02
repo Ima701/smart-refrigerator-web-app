@@ -50,10 +50,10 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
     const unresolvedIncidents = filteredIncidents.filter(i => i.status === 'active' || i.status === 'acknowledged').length;
     const totalEvents = filteredEvents.length;
     const avgResponseMs = filteredIncidents.reduce((acc, inc) => {
-      const ackEvent = inc.timeline.find(t => t.action === 'ACKNOWLEDGED');
+      const ackEvent = inc.timeline.find(t => t.action.toLowerCase().includes('acknowledge'));
       if (ackEvent) return acc + (ackEvent.time - inc.triggeredAt);
       return acc;
-    }, 0) / (filteredIncidents.filter(i => i.timeline.some(t => t.action === 'ACKNOWLEDGED')).length || 1);
+    }, 0) / (filteredIncidents.filter(i => i.timeline.some(t => t.action.toLowerCase().includes('acknowledge'))).length || 1);
 
     return {
       totalIncidents,
@@ -173,8 +173,8 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
   // --- 5. Incident & Response (MTTA/MTTR) ---
   const responseData = useMemo(() => {
     return filteredIncidents.slice(0, 20).map((inc, i) => {
-      const ackEvent = inc.timeline.find(t => t.action === 'ACKNOWLEDGED');
-      const resEvent = inc.timeline.find(t => t.action === 'RESOLVED');
+      const ackEvent = inc.timeline.find(t => t.action.toLowerCase().includes('acknowledge'));
+      const resEvent = inc.timeline.find(t => t.action.toLowerCase().includes('resolve'));
 
       const mtta = ackEvent ? (ackEvent.time - inc.triggeredAt) / 60000 : 0;
       const mttr = resEvent ? (resEvent.time - inc.triggeredAt) / 60000 : 0;
