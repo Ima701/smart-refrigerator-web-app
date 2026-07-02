@@ -482,11 +482,26 @@ export default function App() {
                   'HIGH_HUM_ALERT': '💧 High Humidity'
                 };
                 const title = titleMap[e.type] || `Alert: ${e.type}`;
-                new Notification(title, {
+                const opts = {
                   body: `[${e.fridge || 'System'}] ${e.message}`,
                   icon: '/favicon.svg',
-                  requireInteraction: true // Keeps the notification on screen until dismissed on PC
-                });
+                  requireInteraction: true
+                };
+                
+                // Mobile devices (especially iOS PWAs) require using the Service Worker to show notifications
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistration().then(reg => {
+                    if (reg && reg.showNotification) {
+                      reg.showNotification(title, opts);
+                    } else {
+                      new Notification(title, opts);
+                    }
+                  }).catch(() => {
+                    new Notification(title, opts);
+                  });
+                } else {
+                  new Notification(title, opts);
+                }
               } catch (err) {
                 console.error('Failed to trigger native notification:', err);
               }
