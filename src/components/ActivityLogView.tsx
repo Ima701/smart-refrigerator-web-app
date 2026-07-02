@@ -33,6 +33,9 @@ export default function ActivityLogView({ logs, onClearAll }: ActivityLogViewPro
     return matchSearch && matchCategory;
   });
 
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const paginatedLogs = filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const categories = [
     { value: 'all', label: 'All Activities' },
     { value: 'auth', label: 'Authentication' },
@@ -77,11 +80,11 @@ export default function ActivityLogView({ logs, onClearAll }: ActivityLogViewPro
             type="text"
             placeholder="Search activities, users, details..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             className="w-full pl-9 pr-8 py-2 nm-inset outline-none text-xs nm-text-heading transition-all"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 nm-text-dim hover:text-rose-500">
+            <button onClick={() => { setSearch(''); setCurrentPage(1); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 nm-text-dim hover:text-rose-500">
               <X className="w-3 h-3" />
             </button>
           )}
@@ -92,7 +95,7 @@ export default function ActivityLogView({ logs, onClearAll }: ActivityLogViewPro
           {categories.map(c => (
             <button
               key={c.value}
-              onClick={() => setCategoryFilter(c.value)}
+              onClick={() => { setCategoryFilter(c.value); setCurrentPage(1); }}
               className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 ${
                 categoryFilter === c.value ? 'nm-inset text-indigo-500' : 'nm-flat nm-text-dim hover:text-indigo-400'
               }`}
@@ -105,12 +108,12 @@ export default function ActivityLogView({ logs, onClearAll }: ActivityLogViewPro
 
       {/* Log List */}
       <div className="flex flex-col gap-3">
-        {filteredLogs.length === 0 ? (
+        {paginatedLogs.length === 0 ? (
           <div className="nm-card flex flex-col items-center justify-center py-12 text-center">
             <p className="nm-text-dim text-sm font-semibold">No activity logs found</p>
           </div>
         ) : (
-          filteredLogs.map(log => (
+          paginatedLogs.map(log => (
             <div key={log.id} className="nm-card p-4 transition-all duration-300 hover:-translate-y-0.5 border border-slate-500/10">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 
@@ -155,6 +158,20 @@ export default function ActivityLogView({ logs, onClearAll }: ActivityLogViewPro
               </div>
             </div>
           ))
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-xs font-bold nm-text-dim">
+              Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredLogs.length)} of {filteredLogs.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="nm-btn p-2 rounded-xl text-indigo-500 disabled:opacity-40">‹</button>
+              <span className="text-xs font-black nm-text-heading px-2">Page {currentPage} of {totalPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="nm-btn p-2 rounded-xl text-indigo-500 disabled:opacity-40">›</button>
+            </div>
+          </div>
         )}
       </div>
     </div>
