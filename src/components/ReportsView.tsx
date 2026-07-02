@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
-  ComposedChart, Area
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+  ComposedChart, Area,
+  Line,
+  CartesianGrid
 } from 'recharts';
 import { Download, Filter, TrendingUp, AlertTriangle, Activity, Clock, Users, Wifi } from 'lucide-react';
 
@@ -52,7 +54,7 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
       if (ackEvent) return acc + (ackEvent.time - inc.triggeredAt);
       return acc;
     }, 0) / (filteredIncidents.filter(i => i.timeline.some(t => t.action === 'ACKNOWLEDGED')).length || 1);
-    
+
     return {
       totalIncidents,
       unresolvedIncidents,
@@ -65,7 +67,7 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
   const uptimeMetrics = useMemo(() => {
     let totalDowntimeMs = 0;
     let outages = 0;
-    
+
     filteredEvents.forEach(e => {
       if (e.type === 'CONNECTION_RESTORED' && (e as any).duration) {
         totalDowntimeMs += (e as any).duration;
@@ -76,7 +78,7 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
     // For "all time", we default to 30 days as a reasonable baseline if we don't have the exact first event date.
     const periodDays = timeFilter === 'all' ? 30 : (timeFilter === '7d' ? 7 : 30);
     const totalPeriodMs = periodDays * 24 * 60 * 60 * 1000;
-    
+
     const uptimePercent = Math.max(0, 100 - ((totalDowntimeMs / totalPeriodMs) * 100));
     const downtimeMins = (totalDowntimeMs / 60000).toFixed(1);
 
@@ -93,7 +95,7 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
     const days = timeFilter === 'all' || timeFilter === '30d' ? 30 : 7;
     return Array.from({ length: days }, (_, i) => {
       const t = new Date(now - (days - 1 - i) * 24 * 60 * 60 * 1000);
-      
+
       // Pseudo-random deterministic value based on the day of the month so it doesn't jump on re-render
       const seed = t.getDate();
       const pseudoRandom1 = (Math.sin(seed) * 10000) % 1;
@@ -115,7 +117,7 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
   const connectivityData = useMemo(() => {
     const now = Date.now();
     const days = timeFilter === 'all' || timeFilter === '30d' ? 30 : 7;
-    
+
     // Create bucket for each day
     const buckets: Record<string, { date: string; outages: number; durationMin: number }> = {};
     for (let i = days - 1; i >= 0; i--) {
@@ -173,10 +175,10 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
     return filteredIncidents.slice(0, 20).map((inc, i) => {
       const ackEvent = inc.timeline.find(t => t.action === 'ACKNOWLEDGED');
       const resEvent = inc.timeline.find(t => t.action === 'RESOLVED');
-      
+
       const mtta = ackEvent ? (ackEvent.time - inc.triggeredAt) / 60000 : 0;
       const mttr = resEvent ? (resEvent.time - inc.triggeredAt) / 60000 : 0;
-      
+
       return {
         id: `Inc ${filteredIncidents.length - i}`,
         MTTA: parseFloat(mtta.toFixed(1)),
@@ -287,7 +289,7 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
           <h2 className="text-2xl font-black nm-text-heading">Intelligence Hub</h2>
           <p className="text-xs nm-text-dim mt-0.5">Unified Analytics Dashboard</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 flex-wrap">
             <Filter className="w-3.5 h-3.5 nm-text-dim mr-1" />
@@ -295,9 +297,8 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
               <button
                 key={f}
                 onClick={() => setTimeFilter(f)}
-                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 ${
-                  timeFilter === f ? 'nm-inset text-indigo-500' : 'nm-flat nm-text-dim hover:text-indigo-400'
-                }`}
+                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 ${timeFilter === f ? 'nm-inset text-indigo-500' : 'nm-flat nm-text-dim hover:text-indigo-400'
+                  }`}
               >
                 {f === 'all' ? 'All Time' : `Last ${f.replace('d', ' Days')}`}
               </button>
@@ -343,7 +344,7 @@ export default function ReportsView({ events, incidents, activityLogs }: Reports
 
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Trend Chart (Spans 2 columns) */}
         <div className="nm-card flex flex-col lg:col-span-2 min-h-[400px]">
           <div className="flex items-center gap-3 mb-4 pb-4 border-b border-dashed border-slate-700/20">
