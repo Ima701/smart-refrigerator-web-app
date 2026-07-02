@@ -771,7 +771,7 @@ export default function App() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="max-w-7xl mx-auto px-4 md:px-8 pb-0 flex gap-1">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 pb-0 flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide">
           <button
             id="tab-dashboard"
             onClick={() => setActiveTab('dashboard')}

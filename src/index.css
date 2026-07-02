@@ -158,3 +158,12 @@ body {
   background: var(--nm-text-dim);
   border-radius: 3px;
 }
+
+/* Hide scrollbar for tabs/horizontal scrolling */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
