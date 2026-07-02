@@ -470,6 +470,29 @@ export default function App() {
             playAlertSound();
           }
 
+          // Trigger native OS Notification (Web Push equivalent for foreground)
+          if (e.type.endsWith('_ALERT') || e.type.endsWith('_REMINDER') || e.type.includes('RESTORED')) {
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+              try {
+                const titleMap: Record<string, string> = {
+                  'HIGH_TEMP_ALERT': '🚨 High Temp Alert',
+                  'DOOR_OPEN_ALERT': '🚪 Door Open Alert',
+                  'CONNECTION_RESTORED': '✅ Connection Restored',
+                  'POWER_RESTORED': '⚡ Power Restored',
+                  'HIGH_HUM_ALERT': '💧 High Humidity'
+                };
+                const title = titleMap[e.type] || `Alert: ${e.type}`;
+                new Notification(title, {
+                  body: `[${e.fridge || 'System'}] ${e.message}`,
+                  icon: '/favicon.svg',
+                  requireInteraction: true // Keeps the notification on screen until dismissed on PC
+                });
+              } catch (err) {
+                console.error('Failed to trigger native notification:', err);
+              }
+            }
+          }
+
           const RECOV_SUFFIX  = '_RECOVERY';
           if (e.type.endsWith('_ALERT') || e.type.endsWith('_REMINDER')) {
             const typePrefix = e.type.replace('_ALERT', '').replace('_REMINDER', '');
