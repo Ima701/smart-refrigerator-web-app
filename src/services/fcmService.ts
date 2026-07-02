@@ -2,7 +2,7 @@ import { getToken } from 'firebase/messaging';
 import { doc, setDoc } from 'firebase/firestore';
 import { messaging, firestore } from '../firebase';
 
-const VAPID_KEY = 'BHHSbcnXrbMZyI_h2V4o21xDItLDL9rfXJ-YOEldu12v6kFLJbx8eNo1thHqOoMfVPN0lxwMTlIfc3plLZfXuyo';
+const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
 export const requestFCMToken = async (userId: string) => {
   try {
