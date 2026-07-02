@@ -69,6 +69,36 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
   const isD1Open = doors.d1 === 1;
   const isD2Open = doors.d2 === 1;
 
+  // Curated premium design system styles (Gradients and borders)
+  let f1AccentClass = "bg-gradient-to-r from-cyan-500 to-teal-400";
+  let f1BorderClass = "";
+  if (f1Alert) {
+    f1AccentClass = "bg-gradient-to-r from-orange-500 via-rose-500 to-red-600";
+    f1BorderClass = "ring-2 ring-rose-500/40";
+  } else if (isD1Open) {
+    f1AccentClass = "bg-gradient-to-r from-amber-400 to-orange-500";
+    f1BorderClass = "ring-2 ring-amber-500/40";
+  }
+
+  let f2AccentClass = "bg-gradient-to-r from-violet-500 to-indigo-400";
+  let f2BorderClass = "";
+  if (f2Alert) {
+    f2AccentClass = "bg-gradient-to-r from-orange-500 via-rose-500 to-red-600";
+    f2BorderClass = "ring-2 ring-rose-500/40";
+  } else if (isD2Open) {
+    f2AccentClass = "bg-gradient-to-r from-amber-400 to-orange-500";
+    f2BorderClass = "ring-2 ring-amber-500/40";
+  }
+
+  const hasTempAlert = f1Alert || f2Alert;
+  const hasDoorAlert = isD1Open || isD2Open;
+  let sysAccentClass = "bg-gradient-to-r from-emerald-500 to-teal-500";
+  if (hasTempAlert) {
+    sysAccentClass = "bg-gradient-to-r from-orange-500 via-rose-500 to-red-600";
+  } else if (hasDoorAlert) {
+    sysAccentClass = "bg-gradient-to-r from-amber-400 to-orange-500";
+  }
+
   // Render Human-Readable Date
   const lastUpdated = updatedAt ? new Date(updatedAt).toLocaleTimeString() : 'N/A';
 
@@ -84,9 +114,9 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* ================= FRIDGE 01 CARD ================= */}
-        <div className={`nm-card relative overflow-hidden transition-all duration-300 ${f1Alert ? 'ring-2 ring-rose-500/50' : ''}`}>
+        <div className={`nm-card relative overflow-hidden transition-all duration-300 ${f1BorderClass}`}>
           {/* Top side accent indicator */}
-          <div className={`absolute top-0 left-0 h-2.5 w-full ${f1Alert ? 'bg-rose-500' : 'bg-cyan-500'}`}></div>
+          <div className={`absolute top-0 left-0 h-2.5 w-full ${f1AccentClass}`}></div>
 
           <div className="flex justify-between items-start mb-6 pt-2">
             <div>
@@ -97,6 +127,10 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
               <span className="nm-badge inline-flex items-center gap-1 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10">
                 <AlertTriangle className="w-3.5 h-3.5" /> High Temp Alert
               </span>
+            ) : isD1Open ? (
+              <span className="nm-badge inline-flex items-center gap-1 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 animate-pulse">
+                <AlertTriangle className="w-3.5 h-3.5" /> Close Door
+              </span>
             ) : (
               <span className="nm-badge inline-flex items-center gap-1 text-emerald-500 text-[10px] font-black uppercase tracking-wider bg-emerald-500/10">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Safe
@@ -104,30 +138,42 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-3 gap-3">
             {/* Temperature Panel */}
-            <div className="nm-inset p-4 flex flex-col items-center">
-              <Thermometer className={`w-6 h-6 mb-2 ${f1Alert ? 'text-rose-500 animate-bounce' : 'text-cyan-500'}`} />
+            <div className="nm-inset p-3 flex flex-col items-center">
+              <Thermometer className={`w-6 h-6 mb-1.5 ${f1Alert ? 'text-rose-500 animate-bounce' : 'text-cyan-500'}`} />
               <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Temp</span>
-              <span className={`text-3xl font-black mt-1 ${f1Alert ? 'text-rose-500' : 'text-cyan-500'}`}>
+              <span className={`text-2xl font-black mt-0.5 ${f1Alert ? 'text-rose-500' : 'text-cyan-500'}`}>
                 {fridge1.temp.toFixed(1)}°C
               </span>
             </div>
             {/* Humidity Panel */}
-            <div className="nm-inset p-4 flex flex-col items-center">
-              <Droplets className="w-6 h-6 mb-2 text-blue-500" />
+            <div className="nm-inset p-3 flex flex-col items-center">
+              <Droplets className="w-6 h-6 mb-1.5 text-blue-500" />
               <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Humidity</span>
-              <span className="text-3xl font-black mt-1 text-blue-500">
+              <span className="text-2xl font-black mt-0.5 text-blue-500">
                 {fridge1.hum.toFixed(1)}%
+              </span>
+            </div>
+            {/* Door Panel */}
+            <div className={`nm-inset p-3 flex flex-col items-center transition-colors duration-300 ${isD1Open ? 'bg-rose-500/5' : ''}`}>
+              {isD1Open ? (
+                <DoorOpen className="w-6 h-6 mb-1.5 text-rose-500 animate-pulse" />
+              ) : (
+                <DoorClosed className="w-6 h-6 mb-1.5 text-emerald-500" />
+              )}
+              <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Door</span>
+              <span className={`text-2xl font-black mt-0.5 ${isD1Open ? 'text-rose-500' : 'text-emerald-500'}`}>
+                {isD1Open ? 'OPEN' : 'CLOSED'}
               </span>
             </div>
           </div>
         </div>
 
         {/* ================= FRIDGE 02 CARD ================= */}
-        <div className={`nm-card relative overflow-hidden transition-all duration-300 ${f2Alert ? 'ring-2 ring-rose-500/50' : ''}`}>
+        <div className={`nm-card relative overflow-hidden transition-all duration-300 ${f2BorderClass}`}>
           {/* Top side accent indicator */}
-          <div className={`absolute top-0 left-0 h-2.5 w-full ${f2Alert ? 'bg-rose-500' : 'bg-indigo-500'}`}></div>
+          <div className={`absolute top-0 left-0 h-2.5 w-full ${f2AccentClass}`}></div>
 
           <div className="flex justify-between items-start mb-6 pt-2">
             <div>
@@ -138,6 +184,10 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
               <span className="nm-badge inline-flex items-center gap-1 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10">
                 <AlertTriangle className="w-3.5 h-3.5" /> High Temp Alert
               </span>
+            ) : isD2Open ? (
+              <span className="nm-badge inline-flex items-center gap-1 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 animate-pulse">
+                <AlertTriangle className="w-3.5 h-3.5" /> Close Door
+              </span>
             ) : (
               <span className="nm-badge inline-flex items-center gap-1 text-emerald-500 text-[10px] font-black uppercase tracking-wider bg-emerald-500/10">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Safe
@@ -145,58 +195,73 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-3 gap-3">
             {/* Temperature Panel */}
-            <div className="nm-inset p-4 flex flex-col items-center">
-              <Thermometer className={`w-6 h-6 mb-2 ${f2Alert ? 'text-rose-500 animate-bounce' : 'text-indigo-500'}`} />
+            <div className="nm-inset p-3 flex flex-col items-center">
+              <Thermometer className={`w-6 h-6 mb-1.5 ${f2Alert ? 'text-rose-500 animate-bounce' : 'text-indigo-500'}`} />
               <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Temp</span>
-              <span className={`text-3xl font-black mt-1 ${f2Alert ? 'text-rose-500' : 'text-indigo-500'}`}>
+              <span className={`text-2xl font-black mt-0.5 ${f2Alert ? 'text-rose-500' : 'text-indigo-500'}`}>
                 {fridge2.temp.toFixed(1)}°C
               </span>
             </div>
             {/* Humidity Panel */}
-            <div className="nm-inset p-4 flex flex-col items-center">
-              <Droplets className="w-6 h-6 mb-2 text-blue-500" />
+            <div className="nm-inset p-3 flex flex-col items-center">
+              <Droplets className="w-6 h-6 mb-1.5 text-blue-500" />
               <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Humidity</span>
-              <span className="text-3xl font-black mt-1 text-blue-500">
+              <span className="text-2xl font-black mt-0.5 text-blue-500">
                 {fridge2.hum.toFixed(1)}%
+              </span>
+            </div>
+            {/* Door Panel */}
+            <div className={`nm-inset p-3 flex flex-col items-center transition-colors duration-300 ${isD2Open ? 'bg-rose-500/5' : ''}`}>
+              {isD2Open ? (
+                <DoorOpen className="w-6 h-6 mb-1.5 text-rose-500 animate-pulse" />
+              ) : (
+                <DoorClosed className="w-6 h-6 mb-1.5 text-emerald-500" />
+              )}
+              <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Door</span>
+              <span className={`text-2xl font-black mt-0.5 ${isD2Open ? 'text-rose-500' : 'text-emerald-500'}`}>
+                {isD2Open ? 'OPEN' : 'CLOSED'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* ================= HARDWARE STATES CARD ================= */}
+        {/* ================= SYSTEM STATUS CARD ================= */}
         <div className="nm-card relative overflow-hidden transition-all duration-300">
-          {/* Top side accent indicator */}
-          <div className="absolute top-0 left-0 h-2.5 w-full bg-amber-500"></div>
+          {/* Top side accent indicator - dynamically colors based on system alerts */}
+          <div className={`absolute top-0 left-0 h-2.5 w-full ${sysAccentClass}`}></div>
 
           <div className="pt-2 mb-6">
-            <h2 className="text-xl font-bold nm-text-heading">Cabinet Elements</h2>
-            <span className="text-[10px] nm-text-dim font-bold uppercase tracking-wider font-mono">Sensors & Actuators</span>
+            <h2 className="text-xl font-bold nm-text-heading">System Status</h2>
+            <span className="text-[10px] nm-text-dim font-bold uppercase tracking-wider font-mono">Hardware & Network Indicators</span>
           </div>
 
           <div className="flex flex-col gap-4">
-            {/* Doors Cabinet Control Status */}
+            {/* Hardware Warning LED Indicator */}
             <div className="nm-inset p-3.5 flex justify-between items-center px-5">
-              <span className="text-xs font-bold nm-text-heading">Doors Cabinet</span>
-              <div className="flex gap-2">
-                <span className={`nm-badge flex items-center gap-1 font-bold ${isD1Open ? 'text-rose-500' : 'text-emerald-500'}`}>
-                  {isD1Open ? <DoorOpen className="w-3.5 h-3.5" /> : <DoorClosed className="w-3.5 h-3.5" />}
-                  D1: {isD1Open ? 'OPEN' : 'CLOSED'}
-                </span>
-                <span className={`nm-badge flex items-center gap-1 font-bold ${isD2Open ? 'text-rose-500' : 'text-emerald-500'}`}>
-                  {isD2Open ? <DoorOpen className="w-3.5 h-3.5" /> : <DoorClosed className="w-3.5 h-3.5" />}
-                  D2: {isD2Open ? 'OPEN' : 'CLOSED'}
-                </span>
-              </div>
+              <span className="text-xs font-bold nm-text-heading">Hardware Alert LED</span>
+              <span className={`nm-badge flex items-center gap-1.5 font-bold ${led ? 'text-rose-500 bg-rose-500/10' : 'text-emerald-500 bg-emerald-500/10'}`}>
+                {led ? (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-rose-500 animate-pulse" />
+                    ALERT TRIGGERED
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    NORMAL (STANDBY)
+                  </>
+                )}
+              </span>
             </div>
 
-            {/* LED Status */}
+            {/* IoT Device Connection Status */}
             <div className="nm-inset p-3.5 flex justify-between items-center px-5">
-              <span className="text-xs font-bold nm-text-heading">Internal LED Glow</span>
-              <span className={`nm-badge flex items-center gap-1.5 font-bold ${led ? 'text-amber-500' : 'nm-text-dim'}`}>
-                <Lightbulb className={`w-4 h-4 ${led ? 'text-amber-400 animate-pulse' : 'text-slate-500'}`} />
-                {led ? 'LIGHT ON' : 'LIGHT OFF'}
+              <span className="text-xs font-bold nm-text-heading">IoT Hardware Link</span>
+              <span className="nm-badge flex items-center gap-1.5 font-bold text-emerald-500 bg-emerald-500/10">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                ONLINE (ACTIVE)
               </span>
             </div>
           </div>
