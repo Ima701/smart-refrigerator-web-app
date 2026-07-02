@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
+  PieChart, Pie, Cell, Legend,
   ComposedChart, Area
 } from 'recharts';
 import { Download, Filter, TrendingUp, AlertTriangle, Activity, Clock, Users, Wifi } from 'lucide-react';
