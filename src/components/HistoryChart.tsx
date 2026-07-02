@@ -16,9 +16,20 @@ interface HistoryPoint {
 interface HistoryChartProps {
   history: HistoryPoint[];
   maxTemp: number;
+  maxHum: number;
 }
 
 type ChartMetric = 'temperature' | 'humidity';
+type TimeRange = '12h' | '1d' | '3d' | '1w' | '1m' | '3m';
+
+const TIME_RANGES: { value: TimeRange; label: string; points: number; hoursPerPoint: number }[] = [
+  { value: '12h', label: '12hrs', points: 24, hoursPerPoint: 0.5 },
+  { value: '1d', label: '1 Day', points: 24, hoursPerPoint: 1 },
+  { value: '3d', label: '3 Days', points: 36, hoursPerPoint: 2 },
+  { value: '1w', label: '1 Week', points: 42, hoursPerPoint: 4 },
+  { value: '1m', label: '1 Month', points: 30, hoursPerPoint: 24 },
+  { value: '3m', label: '3 Months', points: 45, hoursPerPoint: 48 }, // 1 point every 2 days for 3 months
+];
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -45,26 +56,41 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
-export default function HistoryChart({ history, maxTemp }: HistoryChartProps) {
+export default function HistoryChart({ history, maxTemp, maxHum }: HistoryChartProps) {
   const [metric, setMetric] = useState<ChartMetric>('temperature');
+  const [range, setRange] = useState<TimeRange>('12h');
 
   const isEmpty = history.length === 0;
+  const isShowingMock = isEmpty || !['12h', '1d'].includes(range);
 
-  // Generate mock data if no real history exists yet
+  // Generate mock data if no real history exists yet, or adjust if range is large
   const displayData = useMemo(() => {
-    if (history.length > 0) return history;
+    // If we have real history and range is '24h'/'1d', show real history. 
+    // Otherwise, real history is too short (since it only accumulates locally), so we show mock data for demo.
+    if (history.length > 0 && (range === '12h' || range === '1d')) return history;
+
+    const selectedRange = TIME_RANGES.find(r => r.value === range)!;
     const now = Date.now();
-    return Array.from({ length: 24 }, (_, i) => {
-      const t = new Date(now - (23 - i) * 60 * 60 * 1000);
+
+    return Array.from({ length: selectedRange.points }, (_, i) => {
+      const t = new Date(now - (selectedRange.points - 1 - i) * selectedRange.hoursPerPoint * 60 * 60 * 1000);
+      const seed = t.getTime();
+      const pr1 = (Math.sin(seed / 1000) * 10000) % 1;
+      const pr2 = (Math.cos(seed / 1000) * 10000) % 1;
+      const pr3 = (Math.sin(seed / 500) * 10000) % 1;
+      const pr4 = (Math.cos(seed / 500) * 10000) % 1;
+
       return {
-        time: t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        f1Temp: 4 + Math.random() * 6,
-        f2Temp: 3 + Math.random() * 5,
-        f1Hum: 55 + Math.random() * 25,
-        f2Hum: 50 + Math.random() * 30,
+        time: selectedRange.hoursPerPoint >= 24 
+          ? t.toLocaleDateString([], { month: 'short', day: 'numeric' })
+          : t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        f1Temp: parseFloat((-12 + Math.abs(pr1) * 6).toFixed(1)),
+        f2Temp: parseFloat((-14 + Math.abs(pr2) * 5).toFixed(1)),
+        f1Hum: parseFloat((55 + Math.abs(pr3) * 15).toFixed(1)),
+        f2Hum: parseFloat((50 + Math.abs(pr4) * 15).toFixed(1)),
       };
     });
-  }, [history]);
+  }, [history, range]);
 
   const isTemp = metric === 'temperature';
 
@@ -79,29 +105,47 @@ export default function HistoryChart({ history, maxTemp }: HistoryChartProps) {
           <div>
             <h2 className="text-xl font-black nm-text-heading">Historical Trends</h2>
             <p className="text-xs nm-text-dim mt-0.5">
-              {isEmpty ? 'Sample data shown — connect live sensor for real history' : 'Last 24 hours of telemetry'}
+              {isShowingMock ? `Sample data shown (${TIME_RANGES.find(r => r.value === range)?.label}) — connect live sensor for real history` : `Last ${TIME_RANGES.find(r => r.value === range)?.label} of live telemetry`}
             </p>
           </div>
         </div>
 
-        {/* Metric Toggle */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setMetric('temperature')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${
-              isTemp ? 'nm-inset text-cyan-500' : 'nm-flat nm-text-dim'
-            }`}
-          >
-            <Thermometer className="w-3.5 h-3.5" /> Temp
-          </button>
-          <button
-            onClick={() => setMetric('humidity')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${
-              !isTemp ? 'nm-inset text-blue-500' : 'nm-flat nm-text-dim'
-            }`}
-          >
-            <Droplets className="w-3.5 h-3.5" /> Humidity
-          </button>
+        {/* Time Range Selector & Metric Toggle */}
+        <div className="flex flex-col sm:items-end gap-3">
+          {/* Time Ranges */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {TIME_RANGES.map(r => (
+              <button
+                key={r.value}
+                onClick={() => setRange(r.value)}
+                className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 ${
+                  range === r.value ? 'nm-inset text-indigo-500' : 'nm-flat nm-text-dim hover:text-indigo-400'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          
+          {/* Metric Toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMetric('temperature')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${
+                isTemp ? 'nm-inset text-cyan-500' : 'nm-flat nm-text-dim hover:text-cyan-400'
+              }`}
+            >
+              <Thermometer className="w-3.5 h-3.5" /> Temp
+            </button>
+            <button
+              onClick={() => setMetric('humidity')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${
+                !isTemp ? 'nm-inset text-blue-500' : 'nm-flat nm-text-dim hover:text-blue-400'
+              }`}
+            >
+              <Droplets className="w-3.5 h-3.5" /> Humidity
+            </button>
+          </div>
         </div>
       </div>
 
@@ -122,18 +166,26 @@ export default function HistoryChart({ history, maxTemp }: HistoryChartProps) {
               tickLine={false}
               axisLine={false}
               unit={isTemp ? '°C' : '%'}
+              domain={['auto', (dataMax: number) => Math.max(dataMax, isTemp ? maxTemp + 2 : maxHum + 5)]}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend
               wrapperStyle={{ fontSize: '11px', paddingTop: '12px' }}
               formatter={(val) => <span style={{ color: 'var(--nm-text-dim)' }}>{val}</span>}
             />
-            {isTemp && (
+            {isTemp ? (
               <ReferenceLine
                 y={maxTemp}
                 stroke="#f43f5e"
                 strokeDasharray="4 2"
                 label={{ value: `⚠ ${maxTemp}°C limit`, fill: '#f43f5e', fontSize: 10, position: 'insideTopRight' }}
+              />
+            ) : (
+              <ReferenceLine
+                y={maxHum}
+                stroke="#3b82f6"
+                strokeDasharray="4 2"
+                label={{ value: `⚠ ${maxHum}% limit`, fill: '#3b82f6', fontSize: 10, position: 'insideTopRight' }}
               />
             )}
             {isTemp ? (

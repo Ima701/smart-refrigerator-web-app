@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Thermometer, Droplets, DoorClosed, DoorOpen, Lightbulb, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Thermometer, Droplets, DoorClosed, DoorOpen, AlertTriangle, CheckCircle2, Wifi } from 'lucide-react';
 import HistoryChart from './HistoryChart';
+import { useAppSelector } from '../store';
+import { requestFCMToken } from '../services/fcmService';
 
 export interface LiveData {
   fridge1: {
@@ -17,53 +19,90 @@ export interface LiveData {
   };
   led: boolean;
   updatedAt: number;
+  wifi?: {
+    status: string;
+    rssi: number;
+  };
 }
 
 interface DashboardViewProps {
-  liveData: LiveData | null;
   maxTemp?: number;
+  maxHum?: number;
+  dbConnected?: boolean;
 }
 
-export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewProps) {
+export default function DashboardView({ maxTemp = 8, maxHum = 80, dbConnected = false }: DashboardViewProps) {
+  const [isStale, setIsStale] = useState(false);
   const [history, setHistory] = useState<Array<{
     time: string; f1Temp: number; f2Temp: number; f1Hum: number; f2Hum: number;
   }>>([]);
+  
+  const currentUser = useAppSelector((s) => s.auth.user);
+  const liveData = useAppSelector((s) => s.fridge.liveData) as LiveData | null;
+
+  // Auto-prompt for push notification permissions on first load
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default' && currentUser?.email) {
+      const timer = setTimeout(() => {
+        requestFCMToken(currentUser.email).catch(err => console.error('Auto notification prompt failed:', err));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser?.email]);
+
+  // Check hardware telemetry staleness periodically
+  useEffect(() => {
+    const checkStale = () => {
+      if (liveData && liveData.updatedAt) {
+        setIsStale(Date.now() - liveData.updatedAt > 10000); // stale if no update in 10s
+      } else {
+        setIsStale(true);
+      }
+    };
+    checkStale();
+    const interval = setInterval(checkStale, 2500);
+    return () => clearInterval(interval);
+  }, [liveData]);
 
   // Accumulate history data points from live sensor readings
   useEffect(() => {
     if (!liveData) return;
+    const now = Date.now();
     const point = {
       // Use full timestamp-based label so multiple readings per minute are all captured
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      time: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       f1Temp: liveData.fridge1.temp,
       f2Temp: liveData.fridge2.temp,
       f1Hum: liveData.fridge1.hum,
       f2Hum: liveData.fridge2.hum,
-      _ts: liveData.updatedAt ?? Date.now(), // deduplicate by the sensor's own timestamp
+      _ts: now,
     };
     setHistory(prev => {
-      // Only skip if this exact sensor timestamp was already recorded
       const last = prev[prev.length - 1] as typeof point | undefined;
-      if (last && (last as any)._ts === point._ts) return prev;
+      // Throttle accumulation: only insert if 15 seconds have elapsed since the last point
+      if (last && now - last._ts < 15000) return prev;
       return [...prev.slice(-47), point];
     });
   }, [liveData]);
-  if (!liveData) {
-    return (
-      <div className="flex flex-col items-center justify-center p-16 text-center">
-        <div className="nm-inset p-6 rounded-full mb-4 animate-pulse">
-          <Thermometer className="w-12 h-12 text-blue-500" />
-        </div>
-        <p className="nm-text-dim text-sm font-semibold">Subscribing to Realtime Database /live state...</p>
-      </div>
-    );
-  }
+  const fallbackData = {
+    fridge1: { temp: 0, hum: 0 },
+    fridge2: { temp: 0, hum: 0 },
+    doors: { d1: 0, d2: 0 },
+    led: false,
+    updatedAt: 0,
+    wifi: { status: 'Offline', rssi: -100 }
+  };
 
-  const { fridge1, fridge2, doors, led, updatedAt } = liveData;
+  const { fridge1, fridge2, doors, led, updatedAt, wifi } = liveData || fallbackData;
 
-  // Temperature Threshold Check — use configurable maxTemp from Redux, not hardcoded 8
-  const f1Alert = fridge1.temp > maxTemp;
-  const f2Alert = fridge2.temp > maxTemp;
+  // Temperature & Humidity Threshold Checks
+  const f1TempAlert = fridge1.temp > maxTemp;
+  const f2TempAlert = fridge2.temp > maxTemp;
+  const f1HumAlert = fridge1.hum > maxHum;
+  const f2HumAlert = fridge2.hum > maxHum;
+
+  const f1Alert = f1TempAlert || f1HumAlert;
+  const f2Alert = f2TempAlert || f2HumAlert;
 
   // Door Open checks
   const isD1Open = doors.d1 === 1;
@@ -102,6 +141,16 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
   // Render Human-Readable Date
   const lastUpdated = updatedAt ? new Date(updatedAt).toLocaleTimeString() : 'N/A';
 
+  const getWifiSignalDetails = (rssi?: number) => {
+    if (rssi === undefined) return null;
+    if (rssi >= -55) return { label: 'Excellent', color: 'text-emerald-500' };
+    if (rssi >= -70) return { label: 'Good', color: 'text-cyan-500' };
+    if (rssi >= -85) return { label: 'Fair', color: 'text-amber-500' };
+    return { label: 'Weak', color: 'text-rose-500' };
+  };
+
+  const wifiInfo = getWifiSignalDetails(wifi?.rssi);
+
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto">
       {/* Dynamic Summary Info bar */}
@@ -125,7 +174,7 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
             </div>
             {f1Alert ? (
               <span className="nm-badge inline-flex items-center gap-1 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10">
-                <AlertTriangle className="w-3.5 h-3.5" /> High Temp Alert
+                <AlertTriangle className="w-3.5 h-3.5" /> {f1TempAlert && f1HumAlert ? "High Temp & Hum Alert" : f1TempAlert ? "High Temp Alert" : "High Hum Alert"}
               </span>
             ) : isD1Open ? (
               <span className="nm-badge inline-flex items-center gap-1 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 animate-pulse">
@@ -141,17 +190,17 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
           <div className="grid grid-cols-3 gap-3">
             {/* Temperature Panel */}
             <div className="nm-inset p-3 flex flex-col items-center">
-              <Thermometer className={`w-6 h-6 mb-1.5 ${f1Alert ? 'text-rose-500 animate-bounce' : 'text-cyan-500'}`} />
+              <Thermometer className={`w-6 h-6 mb-1.5 ${f1TempAlert ? 'text-rose-500 animate-bounce' : 'text-cyan-500'}`} />
               <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Temp</span>
-              <span className={`text-2xl font-black mt-0.5 ${f1Alert ? 'text-rose-500' : 'text-cyan-500'}`}>
+              <span className={`text-2xl font-black mt-0.5 ${f1TempAlert ? 'text-rose-500' : 'text-cyan-500'}`}>
                 {fridge1.temp.toFixed(1)}°C
               </span>
             </div>
             {/* Humidity Panel */}
             <div className="nm-inset p-3 flex flex-col items-center">
-              <Droplets className="w-6 h-6 mb-1.5 text-blue-500" />
+              <Droplets className={`w-6 h-6 mb-1.5 ${f1HumAlert ? 'text-rose-500 animate-bounce' : 'text-blue-500'}`} />
               <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Humidity</span>
-              <span className="text-2xl font-black mt-0.5 text-blue-500">
+              <span className={`text-2xl font-black mt-0.5 ${f1HumAlert ? 'text-rose-500' : 'text-blue-500'}`}>
                 {fridge1.hum.toFixed(1)}%
               </span>
             </div>
@@ -182,7 +231,7 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
             </div>
             {f2Alert ? (
               <span className="nm-badge inline-flex items-center gap-1 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10">
-                <AlertTriangle className="w-3.5 h-3.5" /> High Temp Alert
+                <AlertTriangle className="w-3.5 h-3.5" /> {f2TempAlert && f2HumAlert ? "High Temp & Hum Alert" : f2TempAlert ? "High Temp Alert" : "High Hum Alert"}
               </span>
             ) : isD2Open ? (
               <span className="nm-badge inline-flex items-center gap-1 text-rose-500 text-[10px] font-black uppercase tracking-wider bg-rose-500/10 animate-pulse">
@@ -198,17 +247,17 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
           <div className="grid grid-cols-3 gap-3">
             {/* Temperature Panel */}
             <div className="nm-inset p-3 flex flex-col items-center">
-              <Thermometer className={`w-6 h-6 mb-1.5 ${f2Alert ? 'text-rose-500 animate-bounce' : 'text-indigo-500'}`} />
+              <Thermometer className={`w-6 h-6 mb-1.5 ${f2TempAlert ? 'text-rose-500 animate-bounce' : 'text-indigo-500'}`} />
               <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Temp</span>
-              <span className={`text-2xl font-black mt-0.5 ${f2Alert ? 'text-rose-500' : 'text-indigo-500'}`}>
+              <span className={`text-2xl font-black mt-0.5 ${f2TempAlert ? 'text-rose-500' : 'text-indigo-500'}`}>
                 {fridge2.temp.toFixed(1)}°C
               </span>
             </div>
             {/* Humidity Panel */}
             <div className="nm-inset p-3 flex flex-col items-center">
-              <Droplets className="w-6 h-6 mb-1.5 text-blue-500" />
+              <Droplets className={`w-6 h-6 mb-1.5 ${f2HumAlert ? 'text-rose-500 animate-bounce' : 'text-blue-500'}`} />
               <span className="text-[10px] nm-text-dim uppercase tracking-wider font-bold">Humidity</span>
-              <span className="text-2xl font-black mt-0.5 text-blue-500">
+              <span className={`text-2xl font-black mt-0.5 ${f2HumAlert ? 'text-rose-500' : 'text-blue-500'}`}>
                 {fridge2.hum.toFixed(1)}%
               </span>
             </div>
@@ -258,10 +307,35 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
 
             {/* IoT Device Connection Status */}
             <div className="nm-inset p-3.5 flex justify-between items-center px-5">
-              <span className="text-xs font-bold nm-text-heading">IoT Hardware Link</span>
-              <span className="nm-badge flex items-center gap-1.5 font-bold text-emerald-500 bg-emerald-500/10">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-                ONLINE (ACTIVE)
+              <span className="text-xs font-bold nm-text-heading">IoT Refrigerator Link</span>
+              <span className={`nm-badge flex items-center gap-1.5 font-bold ${!isStale ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'}`}>
+                <span className={`w-2 h-2 rounded-full ${!isStale ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                {!isStale ? 'ONLINE (ACTIVE)' : 'OFFLINE / STALE'}
+              </span>
+            </div>
+
+            {/* WiFi Signal Quality */}
+            <div className="nm-inset p-3.5 flex justify-between items-center px-5">
+              <span className="text-xs font-bold nm-text-heading">WiFi Signal Quality</span>
+              {wifi && !isStale ? (
+                <span className={`nm-badge flex items-center gap-1.5 font-bold ${wifiInfo?.color} bg-slate-500/5`}>
+                  <Wifi className="w-3.5 h-3.5" />
+                  {wifiInfo?.label} ({wifi.rssi} dBm)
+                </span>
+              ) : (
+                <span className="nm-badge flex items-center gap-1.5 font-bold text-rose-500 bg-rose-500/10">
+                  <Wifi className="w-3.5 h-3.5" />
+                  OFFLINE
+                </span>
+              )}
+            </div>
+
+            {/* DB Connection Link */}
+            <div className="nm-inset p-3.5 flex justify-between items-center px-5">
+              <span className="text-xs font-bold nm-text-heading">DB Connection Link</span>
+              <span className={`nm-badge flex items-center gap-1.5 font-bold ${dbConnected ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'}`}>
+                <span className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                {dbConnected ? 'CONNECTED' : 'DISCONNECTED'}
               </span>
             </div>
           </div>
@@ -270,7 +344,7 @@ export default function DashboardView({ liveData, maxTemp = 8 }: DashboardViewPr
       </div>
 
       {/* Historical Trends Chart */}
-      <HistoryChart history={history} maxTemp={maxTemp} />
+      <HistoryChart history={history} maxTemp={maxTemp} maxHum={maxHum} />
     </div>
   );
 }

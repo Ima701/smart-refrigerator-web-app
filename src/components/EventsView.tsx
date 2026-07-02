@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   AlertTriangle, DoorOpen, Lightbulb, Clock, ShieldAlert,
-  Filter, ChevronLeft, ChevronRight, CheckCircle2, Download, Search, Calendar, X
+  Filter, ChevronLeft, ChevronRight, CheckCircle2, Download, Search, Calendar, X, Droplets
 } from 'lucide-react';
 
 export interface EventRecord {
@@ -12,19 +12,24 @@ export interface EventRecord {
   timestamp: number;
   acknowledged?: boolean;
   acknowledgedBy?: string;
+  note?: string;
 }
 
-type FilterType = 'all' | 'TEMP' | 'DOOR' | 'LED';
+type FilterType = 'all' | 'TEMP' | 'HUMID' | 'DOOR' | 'LED';
+type StatusFilterType = 'active' | 'acknowledged';
 
 interface EventsViewProps {
   events: EventRecord[];
   canView: boolean;
-  currentUserEmail?: string;
-  onAcknowledge?: (id: string) => void;
+  currentUserRole?: string;
+  onAcknowledge?: (id: string, note?: string) => void;
+  onDeleteEvent?: (id: string) => void;
+  onClearAll?: () => void;
 }
 
 function getEventIcon(type: string) {
   if (type.startsWith('TEMP')) return <AlertTriangle className="w-4 h-4 text-rose-500" />;
+  if (type.startsWith('HUMID')) return <Droplets className="w-4 h-4 text-blue-500" />;
   if (type.startsWith('DOOR')) return <DoorOpen className="w-4 h-4 text-amber-500" />;
   if (type.startsWith('LED'))  return <Lightbulb className="w-4 h-4 text-yellow-500" />;
   return <Clock className="w-4 h-4 nm-text-dim" />;
@@ -33,20 +38,29 @@ function getEventIcon(type: string) {
 function getEventAccent(type: string, acknowledged?: boolean): string {
   if (acknowledged) return 'border-emerald-500/20 bg-emerald-500/5 opacity-70';
   if (type.startsWith('TEMP')) return 'border-rose-500/40 bg-rose-500/5';
+  if (type.startsWith('HUMID')) return 'border-blue-500/40 bg-blue-500/5';
   if (type.startsWith('DOOR')) return 'border-amber-500/40 bg-amber-500/5';
   if (type.startsWith('LED'))  return 'border-yellow-500/40 bg-yellow-500/5';
   return 'border-slate-500/20';
 }
 
-export default function EventsView({ events, canView, onAcknowledge }: EventsViewProps) {
+export default function EventsView({
+  events,
+  canView,
+  currentUserRole,
+  onAcknowledge,
+  onDeleteEvent,
+  onClearAll
+}: EventsViewProps) {
   const [filter, setFilter] = useState<FilterType>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>('active');
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [showAcknowledged, setShowAcknowledged] = useState(true);
-  const itemsPerPage = 6;
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const itemsPerPage = 20;
 
-  useEffect(() => { setCurrentPage(1); }, [filter, search, dateFilter, showAcknowledged]);
+  useEffect(() => { setCurrentPage(1); }, [filter, statusFilter, search, dateFilter]);
 
   // Access guard for viewers
   if (!canView) {
@@ -66,28 +80,38 @@ export default function EventsView({ events, canView, onAcknowledge }: EventsVie
   const FILTERS: { label: string; value: FilterType }[] = [
     { label: 'All Events', value: 'all' },
     { label: '🌡 Temp',    value: 'TEMP' },
+    { label: '💧 Humidity', value: 'HUMID' },
     { label: '🚪 Door',    value: 'DOOR' },
     { label: '💡 LED',     value: 'LED' },
   ];
 
   const filtered = useMemo(() => {
+    const threeMonthsAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
     return events.filter((e) => {
+      // Role-based visibility check: operators & viewers see last 3 months only
+      const matchAge = currentUserRole === 'admin' || e.timestamp >= threeMonthsAgo;
+      
       const matchType = filter === 'all' || e.type.startsWith(filter);
       const matchSearch = search === '' || e.message.toLowerCase().includes(search.toLowerCase()) || e.type.toLowerCase().includes(search.toLowerCase());
       const matchDate = dateFilter === '' || new Date(e.timestamp).toLocaleDateString() === new Date(dateFilter).toLocaleDateString();
-      const matchAck = showAcknowledged || !e.acknowledged;
-      return matchType && matchSearch && matchDate && matchAck;
+      
+      // Status filtering tab
+      const matchStatus = statusFilter === 'active' ? !e.acknowledged : !!e.acknowledged;
+
+      return matchAge && matchType && matchSearch && matchDate && matchStatus;
     });
-  }, [events, filter, search, dateFilter, showAcknowledged]);
+  }, [events, filter, statusFilter, search, dateFilter, currentUserRole]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const unacknowledgedCount = events.filter(e => !e.acknowledged && (e.type.startsWith('TEMP') || e.type.startsWith('DOOR'))).length;
+
+  const activeCount = events.filter(e => !e.acknowledged).length;
+  const ackCount = events.filter(e => e.acknowledged).length;
 
   const handleExportCSV = () => {
-    const header = 'Timestamp,Type,Fridge,Message,Acknowledged,AcknowledgedBy';
+    const header = 'Timestamp,Type,Fridge,Message,Acknowledged,AcknowledgedBy,Note';
     const rows = filtered.map((e) =>
-      `"${new Date(e.timestamp).toLocaleString()}","${e.type}","${e.fridge || '-'}","${e.message}","${e.acknowledged ? 'Yes' : 'No'}","${e.acknowledgedBy || '-'}"`
+      `"${new Date(e.timestamp).toLocaleString()}","${e.type}","${e.fridge || '-'}","${e.message}","${e.acknowledged ? 'Yes' : 'No'}","${e.acknowledgedBy || '-'}","${e.note || '-'}"`
     );
     const csv = [header, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -107,25 +131,60 @@ export default function EventsView({ events, canView, onAcknowledge }: EventsVie
           <div>
             <h2 className="text-xl font-black nm-text-heading flex items-center gap-2">
               <Clock className="w-5 h-5 text-indigo-500" />
-              Event Timeline
-              {unacknowledgedCount > 0 && (
-                <span className="text-[10px] font-black text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full animate-pulse">
-                  {unacknowledgedCount} unresolved
-                </span>
-              )}
+              Event Timeline Center
             </h2>
-            <p className="nm-text-dim text-xs mt-0.5">{events.length} total events</p>
+            <p className="nm-text-dim text-xs mt-0.5">
+              Showing {filtered.length} total events matching criteria {currentUserRole !== 'admin' && '(showing last 3 months)'}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Export */}
             <button
               onClick={handleExportCSV}
-              className="nm-btn flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-emerald-500"
+              className="nm-btn flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-emerald-500 hover:bg-emerald-500/5 transition-colors"
             >
               <Download className="w-3.5 h-3.5" /> Export CSV
             </button>
+
+            {/* Clear All Logs (Admin only) */}
+            {currentUserRole === 'admin' && onClearAll && (
+              <button
+                onClick={() => {
+                  if (confirm("Are you sure you want to delete all historical logs? This action is irreversible.")) {
+                    onClearAll();
+                  }
+                }}
+                className="nm-btn flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-rose-500 hover:bg-rose-500/5 transition-colors"
+              >
+                <X className="w-3.5 h-3.5 text-rose-500" /> Clear All Logs
+              </button>
+            )}
           </div>
+        </div>
+
+        {/* Tab Selection Row */}
+        <div className="flex gap-4 border-b border-dashed border-slate-700/20 pb-0 mb-2">
+          <button
+            onClick={() => setStatusFilter('active')}
+            className={`px-5 py-3 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${
+              statusFilter === 'active'
+                ? 'border-indigo-500 text-indigo-500 font-bold'
+                : 'border-transparent nm-text-dim hover:text-indigo-400'
+            }`}
+          >
+            Active Alerts & System Logs ({activeCount})
+          </button>
+          <button
+            onClick={() => setStatusFilter('acknowledged')}
+            className={`px-5 py-3 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${
+              statusFilter === 'acknowledged'
+                ? 'border-emerald-500 text-emerald-500 font-bold'
+                : 'border-transparent nm-text-dim hover:text-emerald-400'
+            }`}
+          >
+            Acknowledged Alerts ({ackCount})
+          </button>
         </div>
 
         {/* Search + Date + Filter row */}
@@ -158,14 +217,6 @@ export default function EventsView({ events, canView, onAcknowledge }: EventsVie
             />
           </div>
 
-          {/* Ack toggle */}
-          <button
-            onClick={() => setShowAcknowledged(v => !v)}
-            className={`text-[10px] font-black uppercase tracking-wider px-3 py-2 rounded-xl transition-all duration-200 ${showAcknowledged ? 'nm-inset text-emerald-500' : 'nm-flat nm-text-dim'}`}
-          >
-            {showAcknowledged ? '✓ Show Acknowledged' : 'Hide Acknowledged'}
-          </button>
-
           {/* Type filter pills */}
           <div className="flex items-center gap-2 flex-wrap">
             <Filter className="w-3.5 h-3.5 nm-text-dim flex-shrink-0" />
@@ -185,17 +236,17 @@ export default function EventsView({ events, canView, onAcknowledge }: EventsVie
         </div>
       </div>
 
-      {/* Timeline Cards */}
-      {filtered.length === 0 ? (
+      {/* Timeline Cards List */}
+      {paginated.length === 0 ? (
         <div className="nm-card flex flex-col items-center justify-center py-16 text-center">
           <div className="nm-inset p-4 rounded-full mb-4 nm-text-dim">
             <Clock className="w-8 h-8 animate-pulse opacity-40" />
           </div>
-          <p className="nm-text-dim text-sm font-semibold">No events found</p>
+          <p className="nm-text-dim text-sm font-semibold">No events found in this category</p>
           <p className="nm-text-dim text-xs mt-1 opacity-60">
             {filter !== 'all' || search || dateFilter
-              ? 'Try adjusting your search or filters.'
-              : 'The /events node is empty or not yet written.'}
+              ? 'Try adjusting your search filters.'
+              : 'This event log queue is currently empty.'}
           </p>
         </div>
       ) : (
@@ -203,47 +254,86 @@ export default function EventsView({ events, canView, onAcknowledge }: EventsVie
           {paginated.map((ev, idx) => (
             <div
               key={ev.id}
-              className={`nm-card border ${getEventAccent(ev.type, ev.acknowledged)} transition-all duration-300 hover:-translate-y-0.5`}
-              style={{ animationDelay: `${idx * 30}ms` }}
+              className={`nm-card border ${getEventAccent(ev.type, ev.acknowledged)} transition-all duration-300 hover:-translate-y-0.5 p-4`}
+              style={{ animationDelay: `${idx * 20}ms` }}
             >
-              <div className="flex items-start gap-4">
-                {/* Icon Badge */}
-                <div className="nm-inset p-2.5 rounded-full flex-shrink-0">
-                  {ev.acknowledged
-                    ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    : getEventIcon(ev.type)}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                
+                {/* Left: Icon + Text Content */}
+                <div className="flex items-start sm:items-center gap-4 flex-1 min-w-0">
+                  <div className="nm-inset p-2.5 rounded-full flex-shrink-0">
+                    {ev.acknowledged
+                      ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      : getEventIcon(ev.type)}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 mb-1 flex-wrap">
+                      <span className="text-[9px] font-black uppercase tracking-widest nm-text-dim bg-slate-500/15 px-2.5 py-0.5 rounded-md">
+                        {ev.type}
+                        {ev.fridge && <span className="ml-1 text-indigo-400 font-bold">· {ev.fridge}</span>}
+                      </span>
+                      <span className="text-[9px] nm-text-dim font-mono flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(ev.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm nm-text-primary font-semibold leading-snug">{ev.message}</p>
+                    {ev.note && (
+                      <p className="text-[11px] text-emerald-600 font-bold mt-1 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 inline-block">
+                        Note: {ev.note}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest nm-text-dim bg-slate-500/10 px-2 py-0.5 rounded-md">
-                      {ev.type}
-                      {ev.fridge && <span className="ml-1 text-indigo-400">· {ev.fridge}</span>}
-                    </span>
-                    <span className="text-[10px] nm-text-dim font-mono flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {new Date(ev.timestamp).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm nm-text-primary font-semibold leading-snug">{ev.message}</p>
-
-                  {/* Acknowledged state or Acknowledge button */}
+                {/* Right: Actions */}
+                <div className="flex-shrink-0 flex items-center gap-3 flex-wrap">
                   {ev.acknowledged ? (
-                    <p className="text-[10px] text-emerald-500 font-semibold mt-1.5">
+                    <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/5 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                       ✓ Resolved by {ev.acknowledgedBy}
-                    </p>
+                    </span>
                   ) : (
-                    (ev.type.startsWith('TEMP') || ev.type.startsWith('DOOR')) && onAcknowledge && (
-                      <button
-                        onClick={() => onAcknowledge(ev.id)}
-                        className="mt-2 nm-btn text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors flex items-center gap-1"
-                      >
-                        <CheckCircle2 className="w-3 h-3" /> Acknowledge
-                      </button>
-                    )
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full mt-2 sm:mt-0">
+                      {(ev.type.endsWith('_ALERT') || ev.type.endsWith('_REMINDER')) && onAcknowledge && (
+                        <>
+                          <input
+                            type="text"
+                            placeholder="Note (Problem & Action taken)..."
+                            value={notes[ev.id] || ''}
+                            onChange={(e) => setNotes(prev => ({ ...prev, [ev.id]: e.target.value }))}
+                            className="px-2.5 py-1.5 text-xs nm-inset outline-none rounded-lg border border-slate-700/10 w-full sm:w-[250px] focus:border-indigo-500/50"
+                          />
+                          <button
+                            disabled={!notes[ev.id]?.trim()}
+                            onClick={() => {
+                              if (!notes[ev.id]?.trim()) {
+                                alert('Please note the problem and action taken before acknowledging.');
+                                return;
+                              }
+                              onAcknowledge(ev.id, notes[ev.id]);
+                            }}
+                            className="nm-btn text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg text-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-500/10 transition-colors flex items-center gap-1 whitespace-nowrap"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Acknowledge
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Delete Button (Admin only) */}
+                  {currentUserRole === 'admin' && onDeleteEvent && (
+                    <button
+                      onClick={() => onDeleteEvent(ev.id)}
+                      className="nm-btn text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center gap-1"
+                      title="Delete Event Record"
+                    >
+                      <X className="w-3.5 h-3.5 text-rose-500" /> Delete
+                    </button>
                   )}
                 </div>
+
               </div>
             </div>
           ))}
@@ -254,21 +344,18 @@ export default function EventsView({ events, canView, onAcknowledge }: EventsVie
               <span className="text-xs font-bold nm-text-dim">
                 Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} events
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex gap-2">
                 <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="nm-btn p-2 rounded-xl text-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setCurrentPage(v => v - 1)}
+                  className="nm-btn p-2 rounded-xl disabled:opacity-40"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="text-xs font-black nm-text-heading px-2">
-                  Page {currentPage} of {totalPages}
-                </span>
                 <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="nm-btn p-2 rounded-xl text-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setCurrentPage(v => v + 1)}
+                  className="nm-btn p-2 rounded-xl disabled:opacity-40"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

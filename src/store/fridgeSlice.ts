@@ -11,10 +11,12 @@ export interface LiveData {
 
 interface FridgeState {
   connected: boolean;
+  liveData: LiveData | null;
 }
 
 const initialState: FridgeState = {
   connected: false,
+  liveData: null,
 };
 
 const fridgeSlice = createSlice({
@@ -24,8 +26,11 @@ const fridgeSlice = createSlice({
     setConnected(state, action: PayloadAction<boolean>) {
       state.connected = action.payload;
     },
+    setLiveData(state, action: PayloadAction<LiveData | null>) {
+      state.liveData = action.payload;
+    }
   },
 });
 
-export const { setConnected } = fridgeSlice.actions;
+export const { setConnected, setLiveData } = fridgeSlice.actions;
 export default fridgeSlice.reducer;
