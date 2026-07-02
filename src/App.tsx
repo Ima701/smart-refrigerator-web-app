@@ -775,7 +775,7 @@ export default function App() {
           <button
             id="tab-dashboard"
             onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 ${
+            className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 shrink-0 whitespace-nowrap ${
               activeTab === 'dashboard'
                 ? 'nm-inset text-cyan-500'
                 : 'nm-text-dim hover:nm-text-primary'
@@ -787,7 +787,7 @@ export default function App() {
           <button
             id="tab-events"
             onClick={() => { setActiveTab('events'); setEventBadge(0); }}
-            className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 relative ${
+            className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 relative shrink-0 whitespace-nowrap ${
               activeTab === 'events'
                 ? 'nm-inset text-indigo-500'
                 : 'nm-text-dim hover:nm-text-primary'
@@ -807,7 +807,7 @@ export default function App() {
             <button
               id="tab-config"
               onClick={() => setActiveTab('config')}
-              className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 ${
+              className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 shrink-0 whitespace-nowrap ${
                 activeTab === 'config'
                   ? 'nm-inset text-indigo-500'
                   : 'nm-text-dim hover:nm-text-primary'
@@ -823,7 +823,7 @@ export default function App() {
             <button
               id="tab-audit"
               onClick={() => setActiveTab('audit')}
-              className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 ${
+              className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 shrink-0 whitespace-nowrap ${
                 activeTab === 'audit'
                   ? 'nm-inset text-amber-500'
                   : 'nm-text-dim hover:nm-text-primary'
@@ -839,7 +839,7 @@ export default function App() {
             <button
               id="tab-reports"
               onClick={() => setActiveTab('reports')}
-              className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 ${
+              className={`flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all duration-200 shrink-0 whitespace-nowrap ${
                 activeTab === 'reports'
                   ? 'nm-inset text-emerald-500'
                   : 'nm-text-dim hover:nm-text-primary'
