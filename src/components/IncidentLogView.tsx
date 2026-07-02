@@ -211,7 +211,7 @@ export default function IncidentLogView({ incidents }: IncidentLogViewProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'acknowledged' | 'resolved'>('all');
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   const filtered = incidents.filter(inc => {
     const matchStatus = statusFilter === 'all' || inc.status === statusFilter;

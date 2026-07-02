@@ -52,7 +52,7 @@ export default function UserManagement() {
   const [isLoading, setIsLoading] = useState(true);
   
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   // Modal
   const [showModal, setShowModal] = useState(false);
@@ -291,7 +291,7 @@ export default function UserManagement() {
       ) : (
         <div className="flex flex-col gap-4">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="text-[10px] nm-text-dim font-black uppercase tracking-widest border-b border-slate-700/10">
                   <th className="text-left pb-3 pl-2">#</th>

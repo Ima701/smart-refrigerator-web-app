@@ -19,6 +19,8 @@ interface ActivityLogViewProps {
 export default function ActivityLogView({ logs, onClearAll }: ActivityLogViewProps) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const filteredLogs = logs.filter(log => {
     const matchSearch = search === '' || 

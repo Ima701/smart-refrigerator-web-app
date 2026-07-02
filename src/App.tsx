@@ -833,9 +833,9 @@ export default function App() {
           >
             <History className="w-3.5 h-3.5" />
             Events
-            {eventBadge > 0 && activeTab !== 'events' && (
-              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center animate-pulse">
-                {eventBadge > 9 ? '9+' : eventBadge}
+            {eventBadge > 0 && (
+              <span className="flex h-4 min-w-[1rem] px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow-[0_0_10px_rgba(244,63,94,0.5)]">
+                {eventBadge > 99 ? '99+' : eventBadge}
               </span>
             )}
           </button>
