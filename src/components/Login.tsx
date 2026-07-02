@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { ref, push } from 'firebase/database';
 import { Shield, Key, Mail, Sun, Moon } from 'lucide-react';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { useAppDispatch, useAppSelector } from '../store';
 import { setUser, setLoading, getRoleFromEmail } from '../store/authSlice';
 import { toggleTheme } from '../store/themeSlice';
@@ -31,7 +32,18 @@ export default function Login() {
       const userEmail = credential.user.email || email;
       setEmail('');
       setPassword('');
-      dispatch(setUser({ email: userEmail, role: getRoleFromEmail(userEmail) }));
+      const role = getRoleFromEmail(userEmail);
+      dispatch(setUser({ email: userEmail, role }));
+      
+      // Log authentication
+      push(ref(db, '/audit'), {
+        timestamp: Date.now(),
+        actor: userEmail,
+        actorRole: role,
+        action: 'User Logged In',
+        details: 'Successful authentication into the system',
+        category: 'auth',
+      }).catch(err => console.error('Failed to write audit log:', err));
     } catch (err: any) {
       console.error('Sign-in error:', err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {

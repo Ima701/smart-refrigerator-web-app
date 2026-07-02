@@ -3,6 +3,7 @@ import { useAppSelector } from '../store';
 import { auth, db } from '../firebase';
 import { updateEmail, updatePassword } from 'firebase/auth';
 import { ref, get, set, remove } from 'firebase/database';
+import { requestFCMToken } from '../services/fcmService';
 import {
   User,
   Mail,
@@ -40,6 +41,9 @@ export default function ProfileView() {
     if (typeof Notification === 'undefined') return;
     const perm = await Notification.requestPermission();
     setNotifPermission(perm);
+    if (perm === 'granted' && currentUser?.email) {
+      await requestFCMToken(currentUser.email);
+    }
   };
 
   if (!currentUser) return null;

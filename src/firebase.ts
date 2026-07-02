@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getMessaging } from 'firebase/messaging';
 
 export const firebaseConfig = {
   apiKey: 'AIzaSyBHPGnVPCmUay8s9JtQtqNoJCKnEQ3dInk',
@@ -25,3 +27,9 @@ export const auth = getAuth(app);
 // without disturbing the admin's own session.
 const secondaryApp = initializeApp(firebaseConfig, 'user-provisioning');
 export const secondaryAuth = getAuth(secondaryApp);
+
+// Firestore — used for storing FCM device tokens
+export const firestore = getFirestore(app);
+
+// Messaging — used for FCM push notifications
+export const messaging = getMessaging(app);
